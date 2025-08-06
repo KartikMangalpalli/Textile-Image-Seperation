@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <base target="_self">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textile Pixel Reorder Tool</title>
+    <meta name="description" content="Tool for textile designers to apply custom pixel reordering patterns to images">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jimp@0.16.1/browser/lib/jimp.min.js"></script>
+    <style>
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #imagePreview, #processedPreview {
+            max-width: 100%;
+            max-height: 400px;
+            border: 1px solid #ddd;
+        }
+        .order-input {
+            width: 50px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+    <header class="bg-indigo-600 text-white shadow-md">
+        <div class="container mx-auto px-4 py-6">
+            <h1 class="text-3xl font-bold">Textile Pixel Reorder Tool</h1>
+            <p class="mt-2">Create custom pixel reordering patterns for your textile designs</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="tabs flex border-b border-gray-200 mb-6">
+            <button class="tab-btn py-2 px-4 font-medium text-indigo-600 border-b-2 border-indigo-600" data-tab="create-section">Create Section</button>
+            <button class="tab-btn py-2 px-4 font-medium text-gray-500 hover:text-indigo-600" data-tab="upload-image">Upload Image</button>
+            <button class="tab-btn py-2 px-4 font-medium text-gray-500 hover:text-indigo-600" data-tab="preview-download">Preview & Download</button>
+        </div>
+
+        <!-- Create Section Tab -->
+        <div id="create-section" class="tab-content active">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Create New Reorder Section</h2>
+                <div class="mb-4">
+                    <label for="setSize" class="block text-sm font-medium text-gray-700 mb-2">Set Size (number of columns)</label>
+                    <input type="number" id="setSize" min="2" max="50" value="6" class="w-20 px-3 py-2 border border-gray-300 rounded-md">
+                    <button id="generateInputs" class="ml-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Generate Inputs</button>
+                </div>
+                
+                <div id="inputContainer" class="mb-4">
+                    <!-- Inputs will be generated here -->
+                </div>
+                
+                <div class="mb-4">
+                    <label for="sectionName" class="block text-sm font-medium text-gray-700 mb-2">Section Name</label>
+                    <input type="text" id="sectionName" placeholder="My Pattern" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                
+                <button id="saveSection" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Save Section</button>
+            </div>
+            
+            <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Saved Sections</h2>
+                <div id="savedSections" class="space-y-4">
+                    <!-- Saved sections will be displayed here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Image Tab -->
+        <div id="upload-image" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Upload Image</h2>
+                <div class="mb-4">
+                    <label for="imageUpload" class="block text-sm font-medium text-gray-700 mb-2">Select BMP or RGB Image</label>
+                    <input type="file" id="imageUpload" accept=".bmp,.jpg,.jpeg,.png" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="selectSection" class="block text-sm font-medium text-gray-700 mb-2">Select Reorder Section</label>
+                    <select id="selectSection" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="">-- Select a section --</option>
+                    </select>
+                </div>
+                
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-medium mb-2">Original Image</h3>
+                        <div class="flex justify-center items-center bg-gray-100 p-4 rounded-md" style="min-height: 200px;">
+                            <img id="imagePreview" src="" alt="Original image preview" class="hidden">
+                            <p id="noImageText" class="text-gray-500">No image uploaded</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1">
+                        <h3 class="text-lg font-medium mb-2">Processed Image</h3>
+                        <div class="flex justify-center items-center bg-gray-100 p-4 rounded-md" style="min-height: 200px;">
+                            <img id="processedPreview" src="" alt="Processed image preview" class="hidden">
+                            <p id="noProcessedText" class="text-gray-500">Processed image will appear here</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="processImage" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50" disabled>Process Image</button>
+            </div>
+        </div>
+
+        <!-- Preview & Download Tab -->
+        <div id="preview-download" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Preview & Download</h2>
+                <div class="flex justify-center mb-6">
+                    <img id="finalPreview" src="" alt="Final processed image" class="max-w-full max-h-96 border border-gray-300">
+                </div>
+                
+                <div class="flex flex-wrap gap-4">
+                    <button id="downloadBmp" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50" disabled>Download BMP</button>
+                    <button id="downloadPng" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50" disabled>Download PNG</button>
+                    <button id="downloadJpg" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50" disabled>Download JPG</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-100 py-6 mt-8">
+        <div class="container mx-auto px-4 text-center text-gray-600">
+            <p>Textile Pixel Reorder Tool &copy; 2023</p>
+        </div>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const setSizeInput = document.getElementById('setSize');
+        const generateInputsBtn = document.getElementById('generateInputs');
+        const inputContainer = document.getElementById('inputContainer');
+        const sectionNameInput = document.getElementById('sectionName');
+        const saveSectionBtn = document.getElementById('saveSection');
+        const savedSectionsContainer = document.getElementById('savedSections');
+        const imageUpload = document.getElementById('imageUpload');
+        const selectSection = document.getElementById('selectSection');
+        const imagePreview = document.getElementById('imagePreview');
+        const noImageText = document.getElementById('noImageText');
+        const processedPreview = document.getElementById('processedPreview');
+        const noProcessedText = document.getElementById('noProcessedText');
+        const processImageBtn = document.getElementById('processImage');
+        const finalPreview = document.getElementById('finalPreview');
+        const downloadBmpBtn = document.getElementById('downloadBmp');
+        const downloadPngBtn = document.getElementById('downloadPng');
+        const downloadJpgBtn = document.getElementById('downloadJpg');
+
+        // State
+        let originalImage = null;
+        let processedImage = null;
+        let currentCanvas = null;
+
+        // Tab switching
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.getAttribute('data-tab');
+                
+                // Update active tab button
+                tabBtns.forEach(tabBtn => {
+                    tabBtn.classList.remove('border-indigo-600', 'text-indigo-600');
+                    tabBtn.classList.add('text-gray-500', 'hover:text-indigo-600');
+                });
+                btn.classList.add('border-indigo-600', 'text-indigo-600');
+                btn.classList.remove('text-gray-500', 'hover:text-indigo-600');
+                
+                // Show active tab content
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Generate input fields for section creation
+        generateInputsBtn.addEventListener('click', () => {
+            const setSize = parseInt(setSizeInput.value);
+            if (isNaN(setSize) || setSize < 2 || setSize > 50) {
+                alert('Please enter a valid set size between 2 and 50');
+                return;
+            }
+            
+            inputContainer.innerHTML = '';
+            
+            for (let i = 1; i <= setSize; i++) {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'flex items-center mb-2';
+                
+                const label = document.createElement('label');
+                label.className = 'w-8 text-sm font-medium text-gray-700';
+                label.textContent = `Col ${i}:`;
+                
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = '1';
+                input.max = setSize.toString();
+                input.value = i.toString();
+                input.className = 'order-input ml-2 px-2 py-1 border border-gray-300 rounded';
+                input.dataset.index = i;
+                
+                inputGroup.appendChild(label);
+                inputGroup.appendChild(input);
+                inputContainer.appendChild(inputGroup);
+            }
+        });
+
+        // Save section to localStorage
+        saveSectionBtn.addEventListener('click', () => {
+            const setSize = parseInt(setSizeInput.value);
+            const inputs = inputContainer.querySelectorAll('input[type="number"]');
+            
+            if (inputs.length === 0) {
+                alert('Please generate inputs first');
+                return;
+            }
+            
+            const order = [];
+            const seen = new Set();
+            let isValid = true;
+            
+            inputs.forEach(input => {
+                const value = parseInt(input.value);
+                if (isNaN(value) || value < 1 || value > setSize || seen.has(value)) {
+                    isValid = false;
+                }
+                order.push(value);
+                seen.add(value);
+            });
+            
+            if (!isValid || order.length !== setSize) {
+                alert(`Please enter a valid permutation of numbers from 1 to ${setSize}`);
+                return;
+            }
+            
+            const sectionName = sectionNameInput.value.trim() || `Pattern ${new Date().toLocaleString()}`;
+            const section = {
+                id: Date.now(),
+                name: sectionName,
+                size: setSize,
+                order: order
+            };
+            
+            // Save to localStorage
+            const sections = JSON.parse(localStorage.getItem('pixelReorderSections') || '[]');
+            sections.push(section);
+            localStorage.setItem('pixelReorderSections', JSON.stringify(sections));
+            
+            // Update UI
+            loadSavedSections();
+            updateSectionDropdown();
+            
+            // Reset form
+            inputContainer.innerHTML = '';
+            sectionNameInput.value = '';
+            
+            alert('Section saved successfully!');
+        });
+
+        // Load saved sections from localStorage
+        function loadSavedSections() {
+            const sections = JSON.parse(localStorage.getItem('pixelReorderSections') || '[]');
+            savedSectionsContainer.innerHTML = '';
+            
+            if (sections.length === 0) {
+                savedSectionsContainer.innerHTML = '<p class="text-gray-500">No saved sections yet</p>';
+                return;
+            }
+            
+            sections.forEach(section => {
+                const sectionEl = document.createElement('div');
+                sectionEl.className = 'bg-gray-50 p-4 rounded-md border border-gray-200';
+                
+                const header = document.createElement('div');
+                header.className = 'flex justify-between items-center mb-2';
+                
+                const title = document.createElement('h3');
+                title.className = 'font-medium';
+                title.textContent = section.name;
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'text-red-500 hover:text-red-700 text-sm';
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteBtn.addEventListener('click', () => deleteSection(section.id));
+                
+                header.appendChild(title);
+                header.appendChild(deleteBtn);
+                
+                const details = document.createElement('div');
+                details.className = 'text-sm text-gray-600';
+                details.textContent = `Size: ${section.size} | Order: ${section.order.join(', ')}`;
+                
+                sectionEl.appendChild(header);
+                sectionEl.appendChild(details);
+                
+                savedSectionsContainer.appendChild(sectionEl);
+            });
+        }
+
+        // Delete a section
+        function deleteSection(id) {
+            if (confirm('Are you sure you want to delete this section?')) {
+                const sections = JSON.parse(localStorage.getItem('pixelReorderSections') || '[]');
+                const updatedSections = sections.filter(section => section.id !== id);
+                localStorage.setItem('pixelReorderSections', JSON.stringify(updatedSections));
+                loadSavedSections();
+                updateSectionDropdown();
+            }
+        }
+
+        // Update section dropdown in upload tab
+        function updateSectionDropdown() {
+            const sections = JSON.parse(localStorage.getItem('pixelReorderSections') || '[]');
+            selectSection.innerHTML = '<option value="">-- Select a section --</option>';
+            
+            sections.forEach(section => {
+                const option = document.createElement('option');
+                option.value = section.id;
+                option.textContent = `${section.name} (Size: ${section.size})`;
+                selectSection.appendChild(option);
+            });
+        }
+
+        // Handle image upload
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                originalImage = new Image();
+                originalImage.onload = () => {
+                    imagePreview.src = event.target.result;
+                    imagePreview.classList.remove('hidden');
+                    noImageText.classList.add('hidden');
+                    
+                    // Enable process button if section is selected
+                    if (selectSection.value) {
+                        processImageBtn.disabled = false;
+                    }
+                };
+                originalImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Enable process button when both image and section are selected
+        selectSection.addEventListener('change', () => {
+            processImageBtn.disabled = !(selectSection.value && originalImage);
+        });
+
+        // Process image with selected section
+        processImageBtn.addEventListener('click', async () => {
+            if (!originalImage || !selectSection.value) return;
+            
+            const sectionId = parseInt(selectSection.value);
+            const sections = JSON.parse(localStorage.getItem('pixelReorderSections') || '[]');
+            const section = sections.find(s => s.id === sectionId);
+            
+            if (!section) {
+                alert('Selected section not found');
+                return;
+            }
+            
+            // Show loading state
+            processImageBtn.disabled = true;
+            processImageBtn.textContent = 'Processing...';
+            
+            try {
+                // Process the image
+                processedImage = await processImage(originalImage, section);
+                
+                // Show processed image
+                processedPreview.src = processedImage;
+                processedPreview.classList.remove('hidden');
+                noProcessedText.classList.add('hidden');
+                
+                // Update final preview
+                finalPreview.src = processedImage;
+                
+                // Enable download buttons
+                downloadBmpBtn.disabled = false;
+                downloadPngBtn.disabled = false;
+                downloadJpgBtn.disabled = false;
+                
+                // Switch to preview tab
+                document.querySelector('[data-tab="preview-download"]').click();
+            } catch (error) {
+                console.error('Error processing image:', error);
+                alert('Error processing image. Please try again.');
+            } finally {
+                processImageBtn.disabled = false;
+                processImageBtn.textContent = 'Process Image';
+            }
+        });
+
+        // Process image using Canvas API
+        async function processImage(image, section) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas dimensions
+                canvas.width = image.width;
+                canvas.height = image.height;
+                
+                // Draw original image
+                ctx.drawImage(image, 0, 0);
+                
+                // Get image data
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                // Create a new array to hold reordered pixels
+                const newData = new Uint8ClampedArray(data.length);
+                
+                const setSize = section.size;
+                const order = section.order;
+                
+                // Process each vertical slice
+                for (let x = 0; x < canvas.width; x += setSize) {
+                    const sliceWidth = Math.min(setSize, canvas.width - x);
+                    
+                    // For each column in the original slice
+                    for (let i = 0; i < sliceWidth; i++) {
+                        const targetCol = order[i] - 1; // Convert to 0-based index
+                        
+                        // Only process if target column is within the current slice
+                        if (targetCol < sliceWidth) {
+                            const srcX = x + targetCol;
+                            const destX = x + i;
+                            
+                            // Copy all pixels in this column
+                            for (let y = 0; y < canvas.height; y++) {
+                                const srcPos = (y * canvas.width + srcX) * 4;
+                                const destPos = (y * canvas.width + destX) * 4;
+                                
+                                newData[destPos] = data[srcPos];     // R
+                                newData[destPos + 1] = data[srcPos + 1]; // G
+                                newData[destPos + 2] = data[srcPos + 2]; // B
+                                newData[destPos + 3] = data[srcPos + 3]; // A
+                            }
+                        }
+                    }
+                }
+                
+                // Put the reordered data back to the canvas
+                const newImageData = new ImageData(newData, canvas.width, canvas.height);
+                ctx.putImageData(newImageData, 0, 0);
+                
+                // Convert to data URL
+                resolve(canvas.toDataURL('image/png'));
+            });
+        }
+
+        // Download buttons
+        downloadPngBtn.addEventListener('click', () => downloadImage('png'));
+        downloadJpgBtn.addEventListener('click', () => downloadImage('jpeg'));
+        downloadBmpBtn.addEventListener('click', () => downloadImage('bmp'));
+
+        function downloadImage(format) {
+            if (!processedImage) return;
+            
+            const link = document.createElement('a');
+            link.download = `processed-image.${format}`;
+            link.href = processedImage.replace('image/png', `image/${format}`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Initialize the app
+        function init() {
+            loadSavedSections();
+            updateSectionDropdown();
+            
+            // Generate default inputs
+            generateInputsBtn.click();
+        }
+
+        init();
+    </script>
+</body>
+</html>
